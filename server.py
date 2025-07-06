@@ -2,9 +2,7 @@ from flask import Flask from threading import Thread from telegram import Update
 
 BOT_TOKEN = "7780144299:AAEiGYayucjHGXMCxN0FPwDgjz7A-mTprko" ADMIN_ID = 2097478310 CHANNEL_USERNAME = "@AFSUNGAR_MERLIN_SERIALI_K"
 
-app = Flask(name)
-
-music_results = {}
+app = Flask(name) music_results = {}
 
 @app.route('/') def home(): return "Bot va Flask ishlayapti!"
 
