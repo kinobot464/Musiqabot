@@ -1,5 +1,8 @@
 from flask import Flask from threading import Thread from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton from telegram.ext import ( ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters, CallbackQueryHandler ) from yt_dlp import YoutubeDL from shazamio import Shazam import subprocess import os import asyncio
 
+(Qolgan kod pastki qismlarda joylashadi...)
+
+
 BOT_TOKEN = "7780144299:AAEiGYayucjHGXMCxN0FPwDgjz7A-mTprko" ADMIN_ID = 2097478310 CHANNEL_USERNAME = "@AFSUNGAR_MERLIN_SERIALI_K"
 
 app = Flask(name) music_results = {}
