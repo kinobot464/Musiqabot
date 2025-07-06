@@ -4,17 +4,15 @@ BOT_TOKEN = "7780144299:AAEiGYayucjHGXMCxN0FPwDgjz7A-mTprko" ADMIN_ID = 20974783
 
 app = Flask(name)
 
-@app.route('/') def home(): return "Bot va Flask ishlayapti!"
-
 music_results = {}
 
-@app.route('/') def index(): return "Bot ishlayapti"
+@app.route('/') def home(): return "Bot va Flask ishlayapti!"
 
 def run_bot(): async def is_subscribed(user_id): try: member = await app_telegram.bot.get_chat_member(CHANNEL_USERNAME, user_id) return member.status in ["member", "creator", "administrator"] except: return False
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    await register_user(user_id)
+    register_user(user_id)
 
     if not await is_subscribed(user_id):
         btn = [[InlineKeyboardButton("🔗 Kanalga obuna bo‘lish", url=f"https://t.me/{CHANNEL_USERNAME[1:]}")],
@@ -35,7 +33,7 @@ async def check_sub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    await register_user(user_id)
+    register_user(user_id)
 
     if not await is_subscribed(user_id):
         btn = [[InlineKeyboardButton("🔗 Kanalga obuna bo‘lish", url=f"https://t.me/{CHANNEL_USERNAME[1:]}")],
@@ -70,7 +68,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    await register_user(user_id)
+    register_user(user_id)
 
     if not await is_subscribed(user_id):
         btn = [[InlineKeyboardButton("🔗 Kanalga obuna bo‘lish", url=f"https://t.me/{CHANNEL_USERNAME[1:]}")],
@@ -167,22 +165,6 @@ def download_selected_music(url):
     }
     with YoutubeDL(ydl_opts) as ydl:
         ydl.download([url])
-
-def download_audio(query):
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'noplaylist': True,
-        'default_search': 'ytsearch',
-        'outtmpl': 'music.%(ext)s',
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }],
-        'quiet': True
-    }
-    with YoutubeDL(ydl_opts) as ydl:
-        ydl.download([query])
 
 def download_video(url):
     ydl_opts = {
