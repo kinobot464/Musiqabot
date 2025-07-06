@@ -1,15 +1,12 @@
 from flask import Flask from threading import Thread from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton from telegram.ext import ( ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters, CallbackQueryHandler ) from yt_dlp import YoutubeDL from shazamio import Shazam import subprocess import os import asyncio
 
-(Qolgan kod pastki qismlarda joylashadi...)
-
-
 BOT_TOKEN = "7780144299:AAEiGYayucjHGXMCxN0FPwDgjz7A-mTprko" ADMIN_ID = 2097478310 CHANNEL_USERNAME = "@AFSUNGAR_MERLIN_SERIALI_K"
 
 app = Flask(name) music_results = {}
 
-@app.route('/') def home(): return "Bot va Flask ishlayapti!"
+@app.route('/') def home(): return "Bot ishlayapti!"
 
-def run_bot(): async def is_subscribed(user_id): try: member = await app_telegram.bot.get_chat_member(CHANNEL_USERNAME, user_id) return member.status in ["member", "creator", "administrator"] except: return False
+def run_bot(): async def is_subscribed(user_id): try: member = await application.bot.get_chat_member(CHANNEL_USERNAME, user_id) return member.status in ["member", "administrator", "creator"] except: return False
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -17,70 +14,65 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not await is_subscribed(user_id):
         btn = [
-            [InlineKeyboardButton("🔗 Kanalga obuna bo‘lish", url=f"https://t.me/{CHANNEL_USERNAME[1:]}")],
+            [InlineKeyboardButton("🔗 Obuna bo‘lish", url=f"https://t.me/{CHANNEL_USERNAME[1:]}")],
             [InlineKeyboardButton("✅ Obunani tekshirish", callback_data="check_sub")]
         ]
         await update.message.reply_text("❗ Botdan foydalanish uchun kanalga obuna bo‘ling:", reply_markup=InlineKeyboardMarkup(btn))
         return
 
-    await update.message.reply_text("👋 Salom! Musiqa nomini yoki linkni yuboring.")
+    await update.message.reply_text("👋 Salom! Musiqa nomi, ovozi yoki link yuboring.")
 
 async def check_sub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
     if await is_subscribed(user_id):
-        await query.edit_message_text("✅ Obuna tasdiqlandi! Endi botdan foydalanishingiz mumkin.")
+        await query.edit_message_text("✅ Obuna tasdiqlandi! Botdan foydalanishingiz mumkin.")
     else:
-        await query.edit_message_text("❌ Hali ham obuna emassiz. Avval kanalga qo‘shiling.")
+        await query.edit_message_text("❌ Hali ham obuna emassiz.")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
+    text = update.message.text
     register_user(user_id)
 
     if not await is_subscribed(user_id):
         btn = [
-            [InlineKeyboardButton("🔗 Kanalga obuna bo‘lish", url=f"https://t.me/{CHANNEL_USERNAME[1:]}")],
+            [InlineKeyboardButton("🔗 Obuna bo‘lish", url=f"https://t.me/{CHANNEL_USERNAME[1:]}")],
             [InlineKeyboardButton("✅ Obunani tekshirish", callback_data="check_sub")]
         ]
-        await update.message.reply_text("❗ Iltimos, avval kanalga obuna bo‘ling.", reply_markup=InlineKeyboardMarkup(btn))
+        await update.message.reply_text("❗ Kanalga obuna bo‘ling.", reply_markup=InlineKeyboardMarkup(btn))
         return
 
-    text = update.message.text
-    if "youtu" in text or "tiktok" in text or "instagram" in text:
-        await update.message.reply_text("⏬ Videoni yuklab olyapman...")
+    if any(link in text for link in ["youtube.com", "youtu.be", "tiktok.com", "instagram.com"]):
+        await update.message.reply_text("⏬ Video yuklanmoqda...")
         try:
             download_video(text)
             await context.bot.send_video(chat_id=update.effective_chat.id, video=open("video.mp4", 'rb'))
             await update.message.reply_text("🎧 Audio chiqarilmoqda...")
             extract_audio()
-            btns = [[InlineKeyboardButton("🎬 YouTube'da ochish", url=text)]]
-            await context.bot.send_audio(chat_id=update.effective_chat.id, audio=open("audio.mp3", 'rb'), reply_markup=InlineKeyboardMarkup(btns))
+            await context.bot.send_audio(chat_id=update.effective_chat.id, audio=open("audio.mp3", 'rb'))
         except Exception as e:
-            await update.message.reply_text(f"❌ Xatolik: {e}")
+            await update.message.reply_text(f"Xatolik: {e}")
     else:
-        await update.message.reply_text("🔍 Musiqa natijalari topilmoqda...")
+        await update.message.reply_text("🔍 Musiqa qidirilmoqda...")
         try:
             results = search_music_list(text)
             if not results:
-                await update.message.reply_text("❌ Hech narsa topilmadi.")
+                await update.message.reply_text("Hech narsa topilmadi.")
                 return
             music_results[user_id] = results
-            buttons = [[InlineKeyboardButton(f"🎵 {title}", callback_data=f"music_{i}")] for i, (title, url) in enumerate(results)]
-            await update.message.reply_text("🎧 Tanlang:", reply_markup=InlineKeyboardMarkup(buttons))
+            buttons = [[InlineKeyboardButton(title, callback_data=f"music_{i}")] for i, (title, url) in enumerate(results)]
+            await update.message.reply_text("Tanlang:", reply_markup=InlineKeyboardMarkup(buttons))
         except Exception as e:
-            await update.message.reply_text(f"❌ Xatolik: {e}")
+            await update.message.reply_text(f"Xatolik: {e}")
 
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     register_user(user_id)
 
     if not await is_subscribed(user_id):
-        btn = [
-            [InlineKeyboardButton("🔗 Kanalga obuna bo‘lish", url=f"https://t.me/{CHANNEL_USERNAME[1:]}")],
-            [InlineKeyboardButton("✅ Obunani tekshirish", callback_data="check_sub")]
-        ]
-        await update.message.reply_text("❗ Avval kanalga obuna bo‘ling.", reply_markup=InlineKeyboardMarkup(btn))
+        await update.message.reply_text("❗ Avval kanalga obuna bo‘ling.")
         return
 
     await update.message.reply_text("🎵 Musiqa aniqlanmoqda...")
@@ -93,9 +85,9 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         track = out.get("track", {})
         title = track.get("title", "Aniqlanmadi")
         subtitle = track.get("subtitle", "")
-        await update.message.reply_text(f"🎧 Topildi: {title} - {subtitle}" if title != "Aniqlanmadi" else "❌ Musiqa aniqlanmadi.")
+        await update.message.reply_text(f"Topildi: {title} - {subtitle}" if title != "Aniqlanmadi" else "❌ Aniqlanmadi")
     except Exception as e:
-        await update.message.reply_text(f"❌ Xatolik: {e}")
+        await update.message.reply_text(f"Xatolik: {e}")
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -107,7 +99,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if await is_subscribed(user_id):
             await query.edit_message_text("✅ Obuna tasdiqlandi!")
         else:
-            await query.edit_message_text("❌ Hali ham obuna emassiz.")
+            await query.edit_message_text("❌ Obuna topilmadi.")
     elif data.startswith("music_"):
         index = int(data.split("_")[1])
         results = music_results.get(user_id, [])
@@ -116,24 +108,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text("⏬ Yuklab olinmoqda...")
             download_selected_music(url)
             await context.bot.send_audio(chat_id=query.message.chat.id, audio=open("music.mp3", 'rb'))
-
-async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != ADMIN_ID:
-        return
-    users = load_users()
-    await update.message.reply_text(f"👤 Foydalanuvchilar soni: {len(users)}\n✉️ Xabar yuborish uchun /send <xabar>")
-
-async def send_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != ADMIN_ID:
-        return
-    text = " ".join(context.args)
-    users = load_users()
-    for uid in users:
-        try:
-            await context.bot.send_message(chat_id=uid, text=text)
-        except:
-            pass
-    await update.message.reply_text("✅ Xabar yuborildi.")
 
 def register_user(user_id):
     users = load_users()
@@ -186,16 +160,14 @@ def extract_audio():
     subprocess.run(["ffmpeg", "-i", "video.mp4", "-vn", "-acodec", "libmp3lame", "-y", "audio.mp3"],
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-app_telegram = ApplicationBuilder().token(BOT_TOKEN).build()
-app_telegram.add_handler(CommandHandler("start", start))
-app_telegram.add_handler(CommandHandler("admin", admin))
-app_telegram.add_handler(CommandHandler("send", send_broadcast))
-app_telegram.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-app_telegram.add_handler(MessageHandler(filters.VOICE, handle_voice))
-app_telegram.add_handler(CallbackQueryHandler(handle_callback))
-app_telegram.run_polling()
+application = ApplicationBuilder().token(BOT_TOKEN).build()
+application.add_handler(CommandHandler("start", start))
+application.add_handler(CallbackQueryHandler(handle_callback))
+application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+application.add_handler(MessageHandler(filters.VOICE, handle_voice))
+application.run_polling()
 
 Thread(target=run_bot).start()
 
-if name == 'main': app.run(host="0.0.0.0", port=10000)
+if name == "main": app.run(host="0.0.0.0", port=10000)
 
