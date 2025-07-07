@@ -28,17 +28,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE): us
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE): query = update.callback_query await query.answer() user_id = query.from_user.id data = query.data if data == "check_sub": if await is_subscribed(context.bot, user_id): await query.edit_message_text("✅ Obuna tasdiqlandi!") else: await query.edit_message_text("❌ Obuna topilmadi.") elif data.startswith("music_"): index = int(data.split("_")[1]) results = music_results.get(user_id, []) if index < len(results): _, url = results[index] await query.edit_message_text("⏬ Yuklab olinmoqda...") download_selected_music(url) await context.bot.send_audio(chat_id=query.message.chat.id, audio=open("music.mp3", 'rb'))
 
-=== Telegram botni ishga tushiramiz ===
-
-async def run_bot(): app_telegram = ApplicationBuilder().token(BOT_TOKEN).build() app_telegram.add_handler(CommandHandler("start", start)) app_telegram.add_handler(CallbackQueryHandler(handle_callback)) app_telegram.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)) await app_telegram.initialize() await app_telegram.start() await app_telegram.updater.start_polling()
-
 === Flaskni ishga tushiramiz ===
 
-def run_flask(): port = int(os.environ.get("PORT", 10000)) app.run(host="0.0.0.0", port=port)
+def start_flask(): port = int(os.environ.get("PORT", 10000)) app.run(host="0.0.0.0", port=port)
 
-=== Ikkalasini birga ishlatamiz ===
+=== Telegram botni ishga tushiramiz ===
 
-def main(): loop = asyncio.get_event_loop() loop.create_task(run_bot()) run_flask()
+async def run_bot(): app_telegram = ApplicationBuilder().token(BOT_TOKEN).build() app_telegram.add_handler(CommandHandler("start", start)) app_telegram.add_handler(CallbackQueryHandler(handle_callback)) app_telegram.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)) await app_telegram.run_polling()
 
-if name == 'main': main()
+=== Ikkalasini parallel ishlatamiz ===
+
+if name == "main": Thread(target=start_flask).start() asyncio.run(run_bot())
 
