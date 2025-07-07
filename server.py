@@ -1,29 +1,24 @@
 from flask import Flask
-from threading import Thread
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
-    ApplicationBuilder, CommandHandler, MessageHandler,
-    ContextTypes, CallbackQueryHandler, filters
+    Application, ApplicationBuilder, CommandHandler,
+    MessageHandler, CallbackQueryHandler, ContextTypes, filters
 )
 from yt_dlp import YoutubeDL
 from shazamio import Shazam
-import subprocess
-import os
-import asyncio
+import subprocess, os, asyncio
 
 BOT_TOKEN = "7780144299:AAEiGYayucjHGXMCxN0FPwDgjz7A-mTprko"
-ADMIN_ID = 2097478310
 CHANNEL_USERNAME = "@AFSUNGAR_MERLIN_SERIALI_K"
 music_results = {}
 
 app = Flask(__name__)
 
 @app.route('/')
-def home():
+def index():
     return "Bot ishlayapti!"
 
-# === Asosiy yordamchi funksiyalar ===
-
+# ========== Yordamchi funksiyalar ==========
 def register_user(user_id):
     users = load_users()
     if str(user_id) not in users:
@@ -69,25 +64,11 @@ def download_selected_music(url):
     with YoutubeDL(ydl_opts) as ydl:
         ydl.download([url])
 
-def download_video(url):
-    ydl_opts = {
-        'format': 'best[ext=mp4]',
-        'outtmpl': 'video.mp4',
-        'quiet': True
-    }
-    with YoutubeDL(ydl_opts) as ydl:
-        ydl.download([url])
-
-def extract_audio():
-    subprocess.run(["ffmpeg", "-i", "video.mp4", "-vn", "-acodec", "libmp3lame", "-y", "audio.mp3"],
-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-# === Telegram handlerlar ===
+# ========== Telegram handlerlar ==========
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     register_user(user_id)
-
     if not await is_subscribed(context.bot, user_id):
         btn = [
             [InlineKeyboardButton("🔗 Obuna bo‘lish", url=f"https://t.me/{CHANNEL_USERNAME[1:]}")],
@@ -95,8 +76,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         await update.message.reply_text("❗ Botdan foydalanish uchun kanalga obuna bo‘ling:", reply_markup=InlineKeyboardMarkup(btn))
         return
-
-    await update.message.reply_text("👋 Salom! Musiqa nomi, ovozi yoki link yuboring.")
+    await update.message.reply_text("👋 Salom! Musiqa nomi yoki link yuboring.")
 
 async def check_sub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -111,7 +91,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     text = update.message.text
     register_user(user_id)
-
     if not await is_subscribed(context.bot, user_id):
         btn = [
             [InlineKeyboardButton("🔗 Obuna bo‘lish", url=f"https://t.me/{CHANNEL_USERNAME[1:]}")],
@@ -119,49 +98,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         await update.message.reply_text("❗ Kanalga obuna bo‘ling.", reply_markup=InlineKeyboardMarkup(btn))
         return
-
-    if any(link in text for link in ["youtube.com", "youtu.be", "tiktok.com", "instagram.com"]):
-        await update.message.reply_text("⏬ Video yuklanmoqda...")
-        try:
-            download_video(text)
-            await context.bot.send_video(chat_id=update.effective_chat.id, video=open("video.mp4", 'rb'))
-            await update.message.reply_text("🎧 Audio chiqarilmoqda...")
-            extract_audio()
-            await context.bot.send_audio(chat_id=update.effective_chat.id, audio=open("audio.mp3", 'rb'))
-        except Exception as e:
-            await update.message.reply_text(f"Xatolik: {e}")
-    else:
-        await update.message.reply_text("🔍 Musiqa qidirilmoqda...")
-        try:
-            results = search_music_list(text)
-            if not results:
-                await update.message.reply_text("Hech narsa topilmadi.")
-                return
-            music_results[user_id] = results
-            buttons = [[InlineKeyboardButton(title, callback_data=f"music_{i}")] for i, (title, _) in enumerate(results)]
-            await update.message.reply_text("Tanlang:", reply_markup=InlineKeyboardMarkup(buttons))
-        except Exception as e:
-            await update.message.reply_text(f"Xatolik: {e}")
-
-async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    register_user(user_id)
-
-    if not await is_subscribed(context.bot, user_id):
-        await update.message.reply_text("❗ Avval kanalga obuna bo‘ling.")
-        return
-
-    await update.message.reply_text("🎵 Musiqa aniqlanmoqda...")
+    await update.message.reply_text("🔍 Musiqa qidirilmoqda...")
     try:
-        voice = await update.message.voice.get_file()
-        await voice.download_to_drive("voice.ogg")
-        subprocess.run(["ffmpeg", "-i", "voice.ogg", "-y", "voice.mp3"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        shazam = Shazam()
-        out = await shazam.recognize_song("voice.mp3")
-        track = out.get("track", {})
-        title = track.get("title", "Aniqlanmadi")
-        subtitle = track.get("subtitle", "")
-        await update.message.reply_text(f"Topildi: {title} - {subtitle}" if title != "Aniqlanmadi" else "❌ Aniqlanmadi")
+        results = search_music_list(text)
+        if not results:
+            await update.message.reply_text("Hech narsa topilmadi.")
+            return
+        music_results[user_id] = results
+        buttons = [[InlineKeyboardButton(title, callback_data=f"music_{i}")] for i, (title, _) in enumerate(results)]
+        await update.message.reply_text("Tanlang:", reply_markup=InlineKeyboardMarkup(buttons))
     except Exception as e:
         await update.message.reply_text(f"Xatolik: {e}")
 
@@ -170,7 +115,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     user_id = query.from_user.id
     data = query.data
-
     if data == "check_sub":
         if await is_subscribed(context.bot, user_id):
             await query.edit_message_text("✅ Obuna tasdiqlandi!")
@@ -185,20 +129,19 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             download_selected_music(url)
             await context.bot.send_audio(chat_id=query.message.chat.id, audio=open("music.mp3", 'rb'))
 
-# === Asinxron botni ishga tushirish ===
-async def run_telegram_bot():
+# ========== Botni va Flaskni birga ishga tushirish ==========
+
+async def main():
     app_telegram = ApplicationBuilder().token(BOT_TOKEN).build()
     app_telegram.add_handler(CommandHandler("start", start))
     app_telegram.add_handler(CallbackQueryHandler(handle_callback))
     app_telegram.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app_telegram.add_handler(MessageHandler(filters.VOICE, handle_voice))
-    await app_telegram.run_polling()
+    # Voice handlerni hozircha qo‘shmadim — qo‘shmoqchi bo‘lsangiz ayting
 
-def start_bot():
-    asyncio.run(run_telegram_bot())
+    asyncio.create_task(app_telegram.run_polling())
 
-# === Flask va Telegramni parallel ishga tushiramiz ===
-Thread(target=start_bot).start()
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
 
-port = int(os.environ.get("PORT", 10000))
-app.run(host="0.0.0.0", port=port)
+if __name__ == "__main__":
+    asyncio.run(main())
