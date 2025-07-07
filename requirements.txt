@@ -1,5 +1,5 @@
-python-telegram-bot==20.6
-Flask
+flask
+python-telegram-bot==20.7
 yt-dlp
-shazamio
-ffmpeg-python
+shazamio==0.8.1
+aiohttp
