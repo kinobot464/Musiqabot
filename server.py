@@ -1,13 +1,11 @@
 from flask import Flask
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
-    ApplicationBuilder, CommandHandler, MessageHandler,
-    CallbackQueryHandler, ContextTypes, filters
+    ApplicationBuilder, CommandHandler, CallbackQueryHandler,
+    MessageHandler, ContextTypes, filters
 )
 from yt_dlp import YoutubeDL
-import subprocess
-import os
-import asyncio
+import asyncio, os
 from threading import Thread
 
 BOT_TOKEN = "7740266168:AAHVUXz-dp2P8gADtq4QJmXGoVVHv7zejcs"
@@ -17,11 +15,10 @@ music_results = {}
 app = Flask(__name__)
 
 @app.route('/')
-def index():
+def home():
     return "Bot ishlayapti!"
 
 # === Yordamchi funksiyalar ===
-
 def register_user(user_id):
     users = load_users()
     if str(user_id) not in users:
@@ -47,7 +44,7 @@ def search_music_list(query):
         'noplaylist': True,
         'quiet': True,
         'extract_flat': 'in_playlist',
-        'default_search': 'ytsearch10'
+        'default_search': 'ytsearch5'
     }
     with YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(query, download=False)
@@ -68,7 +65,6 @@ def download_selected_music(url):
         ydl.download([url])
 
 # === Telegram handlerlar ===
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     register_user(user_id)
@@ -79,7 +75,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         await update.message.reply_text("❗ Botdan foydalanish uchun kanalga obuna bo‘ling:", reply_markup=InlineKeyboardMarkup(btn))
         return
-    await update.message.reply_text("👋 Salom! Musiqa nomi yoki YouTube link yuboring.")
+    await update.message.reply_text("👋 Salom! Musiqa nomi yoki link yuboring.")
 
 async def check_sub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -132,20 +128,21 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             download_selected_music(url)
             await context.bot.send_audio(chat_id=query.message.chat.id, audio=open("music.mp3", 'rb'))
 
-# === Flaskni ishga tushiramiz ===
-def start_flask():
+# === Flaskni fon rejimida ===
+def run_flask():
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
 
-# === Telegram botni ishga tushiramiz ===
+# === Telegram botni ishga tushirish ===
 async def run_bot():
     app_telegram = ApplicationBuilder().token(BOT_TOKEN).build()
     app_telegram.add_handler(CommandHandler("start", start))
     app_telegram.add_handler(CallbackQueryHandler(handle_callback))
     app_telegram.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    await app_telegram.run_polling()
+    await app_telegram.initialize()
+    await app_telegram.start()
+    await app_telegram.updater.start_polling()
 
-# === Ikkalasini parallel ishlatamiz ===
 if __name__ == "__main__":
-    Thread(target=start_flask).start()
-    asyncio.run(run_bot())
+    Thread(target=run_flask).start()
+    asyncio.get_event_loop().run_until_complete(run_bot())
