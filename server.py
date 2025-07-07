@@ -1,14 +1,15 @@
 from flask import Flask
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
-    Application, ApplicationBuilder, CommandHandler,
-    MessageHandler, CallbackQueryHandler, ContextTypes, filters
+    ApplicationBuilder, CommandHandler, MessageHandler,
+    CallbackQueryHandler, ContextTypes, filters
 )
 from yt_dlp import YoutubeDL
 from shazamio import Shazam
 import subprocess, os, asyncio
+from threading import Thread
 
-BOT_TOKEN = "7780144299:AAEiGYayucjHGXMCxN0FPwDgjz7A-mTprko"
+BOT_TOKEN = "7740266168:AAHVUXz-dp2P8gADtq4QJmXGoVVHv7zejcs"
 CHANNEL_USERNAME = "@AFSUNGAR_MERLIN_SERIALI_K"
 music_results = {}
 
@@ -18,7 +19,8 @@ app = Flask(__name__)
 def index():
     return "Bot ishlayapti!"
 
-# ========== Yordamchi funksiyalar ==========
+# === Yordamchi funksiyalar ===
+
 def register_user(user_id):
     users = load_users()
     if str(user_id) not in users:
@@ -64,7 +66,7 @@ def download_selected_music(url):
     with YoutubeDL(ydl_opts) as ydl:
         ydl.download([url])
 
-# ========== Telegram handlerlar ==========
+# === Telegram handlerlar ===
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -129,19 +131,20 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             download_selected_music(url)
             await context.bot.send_audio(chat_id=query.message.chat.id, audio=open("music.mp3", 'rb'))
 
-# ========== Botni va Flaskni birga ishga tushirish ==========
+# === Flaskni ishga tushiramiz ===
+def start_flask():
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
 
-async def main():
+# === Telegram botni ishga tushiramiz ===
+async def run_bot():
     app_telegram = ApplicationBuilder().token(BOT_TOKEN).build()
     app_telegram.add_handler(CommandHandler("start", start))
     app_telegram.add_handler(CallbackQueryHandler(handle_callback))
     app_telegram.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    # Voice handlerni hozircha qo‘shmadim — qo‘shmoqchi bo‘lsangiz ayting
+    await app_telegram.run_polling()
 
-    asyncio.create_task(app_telegram.run_polling())
-
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
-
+# === Ikkalasini parallel ishlatamiz ===
 if __name__ == "__main__":
-    asyncio.run(main())
+    Thread(target=start_flask).start()
+    asyncio.run(run_bot())
