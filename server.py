@@ -22,7 +22,7 @@ app = Flask(__name__)
 def home():
     return "Bot ishlayapti!"
 
-# --- Asosiy yordamchi funksiyalar ---
+# === Asosiy yordamchi funksiyalar ===
 
 def register_user(user_id):
     users = load_users()
@@ -58,7 +58,7 @@ def search_music_list(query):
 def download_selected_music(url):
     ydl_opts = {
         'format': 'bestaudio/best',
-        'outtmpl': 'music.%(ext)s',
+        'outtmpl': 'music.mp3',
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
@@ -82,7 +82,7 @@ def extract_audio():
     subprocess.run(["ffmpeg", "-i", "video.mp4", "-vn", "-acodec", "libmp3lame", "-y", "audio.mp3"],
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-# --- Telegram handlerlari ---
+# === Telegram handlerlar ===
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -138,7 +138,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text("Hech narsa topilmadi.")
                 return
             music_results[user_id] = results
-            buttons = [[InlineKeyboardButton(title, callback_data=f"music_{i}")] for i, (title, url) in enumerate(results)]
+            buttons = [[InlineKeyboardButton(title, callback_data=f"music_{i}")] for i, (title, _) in enumerate(results)]
             await update.message.reply_text("Tanlang:", reply_markup=InlineKeyboardMarkup(buttons))
         except Exception as e:
             await update.message.reply_text(f"Xatolik: {e}")
@@ -185,17 +185,20 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             download_selected_music(url)
             await context.bot.send_audio(chat_id=query.message.chat.id, audio=open("music.mp3", 'rb'))
 
-# --- Botni ishga tushirish ---
+# === Asinxron botni ishga tushirish ===
+async def run_telegram_bot():
+    app_telegram = ApplicationBuilder().token(BOT_TOKEN).build()
+    app_telegram.add_handler(CommandHandler("start", start))
+    app_telegram.add_handler(CallbackQueryHandler(handle_callback))
+    app_telegram.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app_telegram.add_handler(MessageHandler(filters.VOICE, handle_voice))
+    await app_telegram.run_polling()
 
-def run_bot():
-    application = ApplicationBuilder().token(BOT_TOKEN).build()
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CallbackQueryHandler(handle_callback))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    application.add_handler(MessageHandler(filters.VOICE, handle_voice))
-    application.run_polling()
+def start_bot():
+    asyncio.run(run_telegram_bot())
 
-Thread(target=run_bot).start()
+# === Flask va Telegramni parallel ishga tushiramiz ===
+Thread(target=start_bot).start()
 
 port = int(os.environ.get("PORT", 10000))
 app.run(host="0.0.0.0", port=port)
